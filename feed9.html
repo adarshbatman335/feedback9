@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced School Feedback System (Demo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .student-main-view { display: none; }
+        .student-main-view.active { display: block; }
+        .tab-link { cursor: pointer; padding: 0.75rem 1rem; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab-link.active { border-color: #4f46e5; color: #4f46e5; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #toast-notification {
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            transform: translateY(100%);
+            opacity: 0;
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 100;
+        }
+        #toast-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .nav-icon-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-icon-btn.active {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .forum-tab.active {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+            color: #4f46e5;
+        }
+        .reply-form { display: none; }
+        .reply-container {
+            position: relative;
+            padding-left: 20px; /* Space for the line */
+        }
+        .reply-container::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #e5e7eb; /* gray-200 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="p-4 rounded-lg shadow-lg text-white max-w-sm">
+        <p id="toast-message"></p>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal-overlay hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 id="modal-title" class="text-2xl font-bold">Details</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            </div>
+            <div id="modal-content" class="p-6 overflow-y-auto space-y-4"></div>
+        </div>
+    </div>
+
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Login View -->
+        <div id="login-view" class="view active">
+            <header class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-900">M.G.M.'s College of CS and IT, Nanded<br>Feedback System</h1>
+            </header>
+            <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-xl shadow-lg border"><h2 class="text-2xl font-bold text-center mb-6">Student Login</h2><form id="student-login-form" class="space-y-4"><div><label for="roll-number" class="block text-sm font-medium text-gray-700">Your College Roll Number</label><input type="text" id="roll-number" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., BCS-101" value="BCS-101"></div><div><label for="student-password" class="block text-sm font-medium text-gray-700">Password</label><input type="password" id="student-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="student123"></div><button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Login as Student</button><p class="text-xs text-gray-500 mt-4 text-center">For this demo, any Roll No. can be used.<br>Password: <b>student123</b></p></form></div>
+                <div class="bg-white p-8 rounded-xl shadow-lg border"><h2 class="text-2xl font-bold text-center mb-6">Teacher & Admin Login</h2><form id="teacher-login-form" class="space-y-4"><div><label for="email" class="block text-sm font-medium text-gray-700">Email Address</label><input type="email" id="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="deshpande@example.com"></div><div><label for="password" class="block text-sm font-medium text-gray-700">Password</label><input type="password" id="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="password123"></div><button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">Sign in</button></form><p class="text-xs text-gray-500 mt-4 text-center">Use a teacher email (e.g., <b>deshpande@example.com</b>) or <b>admin@example.com</b><br>Password for all: <b>password123</b></p></div>
+            </div>
+            <footer class="text-center mt-12 pt-8 border-t border-gray-200"><p class="text-sm text-gray-600">Created by: Adarsh Deosarkar, Ajay Lendale, Adarsh Magar</p><p class="text-xs text-gray-500 mt-1">M.G.M.'s College of Computer Science and It, Nanded</p></footer>
+        </div>
+
+        <!-- Student View -->
+        <div id="student-view" class="view">
+            <div class="flex justify-between items-center mb-6">
+                <h1 id="student-welcome" class="text-3xl font-bold"></h1>
+                <div>
+                    <button id="student-profile-btn" class="text-gray-600 hover:text-indigo-600 mr-4"><i class="fas fa-user-circle fa-lg"></i> Profile</button>
+                    <button id="student-logout-btn" class="logout-btn text-sm text-blue-600 hover:underline">Logout</button>
+                </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl shadow-md mb-8">
+                <div id="student-nav-menu" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <button data-view="notices" class="nav-icon-btn p-4 rounded-lg active"><div class="w-16 h-16 mx-auto bg-red-100 text-red-500 rounded-full flex items-center justify-center text-2xl"><i class="fas fa-bell"></i></div><p class="mt-2 font-semibold">Notices</p></button>
+                    <button data-view="forum" class="nav-icon-btn p-4 rounded-lg"><div class="w-16 h-16 mx-auto bg-blue-100 text-blue-500 rounded-full flex items-center justify-center text-2xl"><i class="fas fa-comments"></i></div><p class="mt-2 font-semibold">Forum</p></button>
+                    <button data-view="polls" class="nav-icon-btn p-4 rounded-lg"><div class="w-16 h-16 mx-auto bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center text-2xl"><i class="fas fa-chart-bar"></i></div><p class="mt-2 font-semibold">Polls</p></button>
+                    <button data-view="suggest" class="nav-icon-btn p-4 rounded-lg"><div class="w-16 h-16 mx-auto bg-green-100 text-green-500 rounded-full flex items-center justify-center text-2xl"><i class="fas fa-star"></i></div><p class="mt-2 font-semibold">Suggest</p></button>
+                </div>
+            </div>
+
+            <div>
+                <div id="student-notices-view" class="student-main-view active"></div>
+                <div id="student-forum-view" class="student-main-view"></div>
+                <div id="student-polls-view" class="student-main-view"></div>
+                <div id="student-suggest-view" class="student-main-view"></div>
+                <div id="student-profile-view" class="student-main-view"></div>
+                <div id="student-feedback-history-view" class="student-main-view"></div>
+                <div id="student-submit-feedback-view" class="student-main-view"></div>
+            </div>
+        </div>
+
+        <!-- Teacher View -->
+        <div id="teacher-view" class="view">
+             <div class="flex justify-between items-center mb-6"><h1 class="text-3xl font-bold">Teacher Dashboard</h1><button id="teacher-logout-btn" class="logout-btn text-sm text-indigo-600 hover:underline">Logout</button></div>
+             <p id="teacher-welcome" class="text-gray-600 mb-6"></p>
+             <div class="border-b border-gray-200"><nav class="flex space-x-4 -mb-px overflow-x-auto" id="teacher-tabs"><a data-tab="notices" class="tab-link active">Notices</a><a data-tab="feedback-feed" class="tab-link">Feedback Feed</a><a data-tab="teacher-suggestion-board" class="tab-link">Suggestion Board</a><a data-tab="create-poll" class="tab-link">Create Poll</a></nav></div>
+             <div class="mt-6">
+                <!-- FIX: Changed id from "teacher-notices" to "notices" to match the data-tab attribute in the nav link -->
+                <div id="notices" class="tab-content active"></div>
+                <div id="feedback-feed" class="tab-content"><div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-2xl font-bold mb-4">Feedback for Your Subjects</h2><div id="feedback-list" class="space-y-4"></div></div></div>
+                <div id="teacher-suggestion-board" class="tab-content"><div class="bg-white p-6 rounded-xl shadow-md"><div id="teacher-suggestion-list" class="space-y-6"></div></div></div>
+                <div id="create-poll" class="tab-content"><div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-2xl font-bold mb-4">Create a New Poll</h2><form id="create-poll-form" class="space-y-4"><div><label for="poll-question" class="block text-sm font-medium text-gray-700">Question</label><textarea id="poll-question" rows="3" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">Did everyone understand the concept of Single Inheritance in Python?</textarea></div><div><label for="poll-option1" class="block text-sm font-medium text-gray-700">Option 1</label><input type="text" id="poll-option1" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="Yes, it was clear."></div><div><label for="poll-option2" class="block text-sm font-medium text-gray-700">Option 2</label><input type="text" id="poll-option2" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="No, I would like a quick revision."></div><button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">Create Poll</button></form></div></div>
+             </div>
+        </div>
+
+        <!-- Admin View -->
+        <div id="admin-view" class="view">
+             <div class="flex justify-between items-center mb-6"><h1 class="text-3xl font-bold">Administrator Dashboard</h1><button id="admin-logout-btn" class="logout-btn text-sm text-teal-600 hover:underline">Logout</button></div>
+             <div class="mb-8 bg-white p-6 rounded-xl shadow-md"><h2 class="text-2xl font-bold mb-4">Concern Management</h2><div class="flex space-x-4 border-b pb-4 mb-4"><div><label for="filter-status" class="block text-sm font-medium text-gray-700">Filter by Status</label><select id="filter-status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"><option value="All">Show All</option><option value="New">New</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option><option value="Reviewed">Reviewed</option></select></div><div><label for="filter-subject" class="block text-sm font-medium text-gray-700">Filter by Subject</label><select id="filter-subject" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"><option value="All">All Subjects</option><option value="Python (Deshpande Sir)">Python</option><option value="Windows Programming (Samadhan Sir)">Windows Programming</option><option value="Data Science (Pathak Sir)">Data Science</option><option value="Software Testing (Trupti Mam)">Software Testing</option><option value="General">General</option></select></div></div><div id="filtered-concerns-list" class="space-y-4"></div></div>
+             <div class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-bold mb-4">Top Suggestions</h3><div id="top-suggestions-list" class="space-y-4"></div></div><div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-bold mb-4">Weekly Feedback Trends</h3><div class="h-64"><canvas id="trends-chart"></canvas></div></div></div>
+             <div class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-bold mb-4">Feedback Category Breakdown</h3><div class="h-64"><canvas id="sentiment-chart"></canvas></div></div><div class="bg-white p-6 rounded-xl shadow-md"><h3 class="text-xl font-bold mb-4">Feedback Volume by Subject</h3><div class="h-64"><canvas id="department-chart"></canvas></div></div></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- MOCK DATA ---
+        const userRoles = { "deshpande@example.com": { role: "teacher", name: "Deshpande Sir", subjects: ["Python (Deshpande Sir)"] }, "pathak@example.com": { role: "teacher", name: "Pathak Sir", subjects: ["Data Science (Pathak Sir)"] }, "trupti@example.com": { role: "teacher", name: "Trupti Mam", subjects: ["Software Testing (Trupti Mam)"] }, "samadhan@example.com": { role: "teacher", name: "Samadhan Sir", subjects: ["Windows Programming (Samadhan Sir)"] }, "admin@example.com": { role: "admin" } };
+        let mockFeedback = [ { id: 'fb1', subject: 'Data Science (Pathak Sir)', category: 'Praise', observation: 'The use of real-world analogies and examples related to current events helps a lot in clearing complex Data Science concepts.', status: 'Reviewed', authorId: 'BCS-101', upvotes: [], createdAt: new Date(Date.now() - 86400000 * 12), followUps: [] }, { id: 'fb2', subject: 'Python (Deshpande Sir)', category: 'Concern', observation: 'The topic of inheritance is a bit difficult. A quick recap on the concept would help a lot.', status: 'Reviewed', authorId: 'BCS-101', upvotes: [], createdAt: new Date(Date.now() - 86400000 * 8), followUps: [{ question: "Could you point to a specific part of inheritance you found confusing?", answer: null }] }, { id: 'fb3', subject: 'General', category: 'Suggestion', observation: 'The library needs more technical books in different languages (like Marathi or Hindi) to help students understand difficult concepts better.', status: 'New', authorId: 'BCS-103', upvotes: ['BCS-104', 'BCS-105', 'BCS-106'], createdAt: new Date(Date.now() - 86400000 * 5), followUps: [] }, { id: 'fb4', subject: 'General', category: 'Concern', observation: 'The projector in Hall H3 is unreliable and often stops working in the middle of a lecture.', status: 'In Progress', authorId: 'BCS-101', upvotes: [], createdAt: new Date(Date.now() - 86400000 * 3), followUps: [{ question: "Thank you for reporting. Can you tell us which lecture this happened in?", answer: "It was during the Windows Programming lecture on Tuesday." }] }, { id: 'fb5', subject: 'Windows Programming (Samadhan Sir)', category: 'Praise', observation: 'The deliberate pace of the Windows Programming lectures really helps us grasp the concepts.', status: 'New', authorId: 'BCS-105', upvotes: [], createdAt: new Date(), followUps: [] }, { id: 'fb6', subject: 'Data Science (Pathak Sir)', category: 'Praise', observation: 'The last lecture on visualization was fantastic!', status: 'New', authorId: 'BCS-106', upvotes: [], createdAt: new Date(Date.now() - 86400000 * 15), followUps: [] }, { id: 'fb7', subject: 'Python (Deshpande Sir)', category: 'Suggestion', observation: 'It would be very helpful if we could have a short, 5-minute quiz at the end of each Python lecture to test our understanding.', status: 'New', authorId: 'BCS-107', upvotes: ['BCS-101', 'BCS-102', 'BCS-103'], createdAt: new Date(), followUps: [] }, { id: 'fb8', subject: 'Windows Programming (Samadhan Sir)', category: 'Concern', observation: 'Fewer lectures are assigned for this subject during the week; we feel an additional lecture would be very helpful.', status: 'New', authorId: 'BCS-108', upvotes: [], createdAt: new Date(Date.now() - 86400000), followUps: [] }, { id: 'fb9', subject: 'Python (Deshpande Sir)', category: 'Praise', observation: "The Python lectures are always very detailed and up-to-date with the latest industry standards. It's very helpful.", status: 'New', authorId: 'BCS-109', upvotes: [], createdAt: new Date(Date.now() - 86400000 * 2), followUps: [] }, { id: 'fb10', subject: 'General', category: 'Suggestion', observation: 'It would be great to have a workshop on current AI trends and technologies.', status: 'New', authorId: 'BCS-110', upvotes: ['BCS-101', 'BCS-102', 'BCS-103', 'BCS-104', 'BCS-105', 'BCS-106', 'BCS-107', 'BCS-108', 'BCS-109'], createdAt: new Date(), followUps: [] }, ];
+        let mockPolls = [ { id: 'poll1', question: 'Which unit should be revised before the internal exam for Software Testing?', active: true, options: [{text: 'Unit 1: Quality Concepts', votes: 8}, {text: 'Unit 2: Software Quality Assurance', votes: 15}], voters: [] } ];
+        let mockNotices = [ { id: 'n1', type: 'college', author: 'Admin', subject: 'Holiday Declared', content: 'The college will remain closed on Monday on account of a local festival.', createdAt: new Date(Date.now() - 86400000 * 2) }, { id: 'n2', type: 'teacher', author: 'Deshpande Sir', subject: 'Extra Python Lecture', content: 'There will be an extra lecture for Python on Saturday at 10 AM to cover advanced topics.', createdAt: new Date(Date.now() - 86400000) } ];
+        let mockForumPosts = [ { id: 'fp1', subject: 'General', authorId: 'BCS-101', isAnonymous: false, title: 'Where can I find the best notes for Data Structures?', content: 'I\'m looking for some good quality, easy-to-understand notes for the DSA course. Any recommendations?', upvotes: ['BCS-102', 'BCS-103'], downvotes: [], reports: [], createdAt: new Date(Date.now() - 86400000*2), replies: [{ id: 'fp1r1', authorId: 'BCS-105', isAnonymous: true, content: 'Check the college library\'s digital section. They uploaded some great resources last week.', upvotes: ['BCS-101'], downvotes: [], reports: [], createdAt: new Date(Date.now() - 86400000), replies: [ { id: 'fp1r1r1', authorId: 'BCS-101', isAnonymous: false, content: 'Thanks! Found them. They are really helpful.', upvotes: [], downvotes: [], reports: [], createdAt: new Date(Date.now() - 3600000), replies: [] } ] }] }, { id: 'fp2', subject: 'Python (Deshpande Sir)', authorId: 'BCS-107', isAnonymous: true, title: 'Struggling with recursion', content: 'Can anyone explain recursion in a simple way? I\'m finding the textbook examples very confusing.', upvotes: ['BCS-108', 'BCS-109', 'BCS-110'], downvotes: [], reports: [], createdAt: new Date(Date.now() - 86400000*3), replies: [] } ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- GLOBAL STATE & UTILS ---
+            const views = { login: document.getElementById('login-view'), student: document.getElementById('student-view'), teacher: document.getElementById('teacher-view'), admin: document.getElementById('admin-view'), };
+            const studentMainViews = { notices: document.getElementById('student-notices-view'), forum: document.getElementById('student-forum-view'), polls: document.getElementById('student-polls-view'), suggest: document.getElementById('student-suggest-view'), profile: document.getElementById('student-profile-view'), feedbackHistory: document.getElementById('student-feedback-history-view'), submitFeedback: document.getElementById('student-submit-feedback-view'), };
+            let currentRollNumber = null;
+            let currentTeacher = null;
+            let currentForumView = { subject: 'General', threadId: null };
+
+            function showToast(message, type = 'success') { const toast = document.getElementById('toast-notification'); const toastMessage = document.getElementById('toast-message'); toastMessage.textContent = message; toast.className = `fixed bottom-8 right-8 p-4 rounded-lg shadow-lg text-white max-w-sm ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
+            function showView(viewName) { Object.values(views).forEach(v => v.classList.remove('active')); if (views[viewName]) views[viewName].classList.add('active'); }
+            function setupTabNavigation(tabsContainerId) { const tabsContainer = document.getElementById(tabsContainerId); if (!tabsContainer) return; const tabLinks = tabsContainer.querySelectorAll('.tab-link'); const tabContents = tabsContainer.parentElement.nextElementSibling.querySelectorAll('.tab-content'); tabsContainer.addEventListener('click', (e) => { if (e.target.classList.contains('tab-link')) { const tabId = e.target.dataset.tab; tabLinks.forEach(tab => tab.classList.remove('active')); e.target.classList.add('active'); tabContents.forEach(content => { content.id === tabId ? content.classList.add('active') : content.classList.remove('active'); }); } }); }
+
+            // --- LOGIN / LOGOUT ---
+            document.getElementById('student-login-form').addEventListener('submit', (e) => { e.preventDefault(); const rollNumber = document.getElementById('roll-number').value.trim().toUpperCase(); const password = document.getElementById('student-password').value; if (rollNumber && password === 'student123') { currentRollNumber = rollNumber; currentTeacher = null; showView('student'); setupStudentDashboard(rollNumber); } else { showToast('Invalid Roll Number or Password.', 'error'); } });
+            document.getElementById('teacher-login-form').addEventListener('submit', (e) => { e.preventDefault(); const email = document.getElementById('email').value; const password = document.getElementById('password').value; const userData = userRoles[email]; if (userData && password === 'password123') { showToast('Login successful!', 'success'); currentRollNumber = null; currentTeacher = userData; if (userData.role === 'teacher') { showView('teacher'); document.getElementById('teacher-welcome').textContent = `Welcome, ${userData.name}.`; populateTeacherDashboard(userData); document.getElementById('teacher-tabs').querySelector('a[data-tab="notices"]').click(); } else if (userData.role === 'admin') { showView('admin'); populateAdminDashboard(); } } else { showToast('Invalid email or password.', 'error'); } });
+            document.querySelectorAll('.logout-btn').forEach(btn => { btn.addEventListener('click', () => { currentRollNumber = null; currentTeacher = null; showView('login'); showToast('You have been logged out.'); }); });
+
+            // --- STUDENT DASHBOARD ---
+            function setupStudentDashboard(rollNumber) {
+                document.getElementById('student-welcome').textContent = `Welcome, ${rollNumber}!`;
+                const navMenu = document.getElementById('student-nav-menu');
+                const navButtons = navMenu.querySelectorAll('.nav-icon-btn');
+                
+                navMenu.addEventListener('click', e => {
+                    const button = e.target.closest('.nav-icon-btn');
+                    if (button) {
+                        const viewName = button.dataset.view;
+                        navButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        showStudentMainView(viewName);
+                    }
+                });
+                
+                document.getElementById('student-profile-btn').addEventListener('click', () => showStudentMainView('profile'));
+                
+                navButtons[0].click();
+            }
+            
+            function showStudentMainView(viewName) {
+                Object.values(studentMainViews).forEach(v => v.classList.remove('active'));
+                const view = studentMainViews[viewName];
+                if (view) {
+                    view.classList.add('active');
+                    switch(viewName) {
+                        case 'notices': renderStudentNotices(); break;
+                        case 'forum': renderForum(); break;
+                        case 'polls': renderPolls(currentRollNumber); break;
+                        case 'suggest': renderSuggestionBoard(currentRollNumber); break;
+                        case 'profile': renderStudentProfile(); break;
+                        case 'feedbackHistory': renderMyFeedbackHistory(currentRollNumber); break;
+                        case 'submitFeedback': renderSubmitFeedbackForm(); break;
+                    }
+                }
+            }
+
+            function renderStudentNotices() {
+                const container = studentMainViews.notices;
+                const collegeNotices = mockNotices.filter(n => n.type === 'college').sort((a,b) => b.createdAt - a.createdAt);
+                const teacherNotices = mockNotices.filter(n => n.type === 'teacher').sort((a,b) => b.createdAt - a.createdAt);
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h2 class="text-2xl font-bold mb-4">College Notices</h2>
+                            <div class="space-y-4">
+                                ${collegeNotices.length > 0 ? collegeNotices.map(n => `
+                                    <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-indigo-500">
+                                        <p class="font-bold">${n.subject}</p>
+                                        <p class="text-gray-700 mt-1">${n.content}</p>
+                                        <p class="text-xs text-gray-500 mt-2 text-right">By: ${n.author} - ${n.createdAt.toLocaleDateString()}</p>
+                                    </div>
+                                `).join('') : '<p class="text-gray-500">No college notices.</p>'}
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold mb-4">Teacher Broadcasts</h2>
+                            <div class="space-y-4">
+                                ${teacherNotices.length > 0 ? teacherNotices.map(n => `
+                                    <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-teal-500">
+                                        <p class="font-bold">${n.subject}</p>
+                                        <p class="text-gray-700 mt-1">${n.content}</p>
+                                        <p class="text-xs text-gray-500 mt-2 text-right">By: ${n.author} - ${n.createdAt.toLocaleDateString()}</p>
+                                    </div>
+                                `).join('') : '<p class="text-gray-500">No teacher broadcasts.</p>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderForum() {
+                const container = studentMainViews.forum;
+                if (currentForumView.threadId) {
+                    renderForumThread(container, currentForumView.threadId);
+                } else {
+                    renderForumList(container);
+                }
+            }
+
+            function renderForumList(container) {
+                const subjects = ['General', ...Object.values(userRoles).filter(u => u.role==='teacher').map(t => t.subjects[0])];
+                const posts = mockForumPosts.filter(p => p.subject === currentForumView.subject).sort((a,b) => b.createdAt - a.createdAt);
+
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <h2 class="text-2xl font-bold">Student Forum</h2>
+                            <button id="new-thread-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">New Post</button>
+                        </div>
+                        <div class="flex items-center border-b mb-4 overflow-x-auto">
+                            ${subjects.map(s => `<button data-subject="${s}" class="forum-tab px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${s === currentForumView.subject ? 'active' : 'border-transparent'}">${s.split(' (')[0]}</button>`).join('')}
+                        </div>
+                        <div id="forum-list" class="space-y-3">
+                            ${posts.length > 0 ? posts.map(p => renderForumPostSnippet(p)).join('') : '<p class="text-gray-500 p-4">No posts in this section yet. Be the first!</p>'}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function renderForumPostSnippet(post) {
+                const authorName = post.isAnonymous ? 'Anonymous' : post.authorId;
+                return `
+                    <div data-thread-id="${post.id}" class="forum-thread-link bg-gray-50 hover:bg-gray-100 p-4 rounded-lg cursor-pointer transition-colors">
+                        <div class="flex justify-between">
+                            <p class="font-bold text-gray-800">${post.title}</p>
+                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                <span title="Votes"><i class="fas fa-arrow-up text-green-500"></i> ${post.upvotes.length - post.downvotes.length}</span>
+                                <span title="Replies"><i class="fas fa-comment text-blue-500"></i> ${post.replies.length}</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Posted by ${authorName}</p>
+                    </div>
+                `;
+            }
+            
+            function renderForumThread(container, threadId) {
+                const post = mockForumPosts.find(p => p.id === threadId);
+                if (!post) { currentForumView.threadId = null; renderForum(); return; }
+                const authorName = post.isAnonymous ? 'Anonymous' : post.authorId;
+                
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <button id="back-to-forum-list" class="text-sm text-blue-600 hover:underline mb-4"><i class="fas fa-arrow-left"></i> Back to list</button>
+                        <div class="border-b pb-4">
+                            <h2 class="text-2xl font-bold">${post.title}</h2>
+                            <p class="text-sm text-gray-500">By ${authorName} on ${post.createdAt.toLocaleDateString()}</p>
+                            <p class="mt-4 text-gray-800">${post.content}</p>
+                            <div class="flex items-center gap-4 mt-4">
+                                <button data-id="${post.id}" class="vote-btn upvote flex items-center gap-1 text-gray-600 hover:text-green-600"><i class="fas fa-thumbs-up"></i> <span>${post.upvotes.length}</span></button>
+                                <button data-id="${post.id}" class="vote-btn downvote flex items-center gap-1 text-gray-600 hover:text-red-600"><i class="fas fa-thumbs-down"></i> <span>${post.downvotes.length}</span></button>
+                                <button data-id="${post.id}" class="reply-btn text-gray-500 hover:text-blue-600 text-xs"><i class="fas fa-reply"></i> Reply</button>
+                                <button data-id="${post.id}" class="report-btn text-gray-500 hover:text-red-700 text-xs"><i class="fas fa-flag"></i> Report</button>
+                            </div>
+                            <div id="reply-form-${post.id}" class="reply-form mt-4"></div>
+                        </div>
+                        <div id="replies-container" class="mt-6 space-y-4">
+                            <h3 class="font-bold">${post.replies.length} Replies</h3>
+                            ${renderReplies(post.replies)}
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderReplies(replies) {
+                if (!replies || replies.length === 0) return '';
+                return replies.sort((a,b) => b.createdAt - a.createdAt).map(reply => `
+                    <div class="reply-container">
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p>${reply.content}</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <p class="text-xs text-gray-500">By ${reply.isAnonymous ? 'Anonymous' : reply.authorId}</p>
+                                <div class="flex items-center gap-2">
+                                    <button data-id="${reply.id}" class="vote-btn upvote text-xs text-gray-500 hover:text-green-600"><i class="fas fa-thumbs-up"></i> <span>${reply.upvotes.length}</span></button>
+                                    <button data-id="${reply.id}" class="vote-btn downvote text-xs text-gray-500 hover:text-red-600"><i class="fas fa-thumbs-down"></i> <span>${reply.downvotes.length}</span></button>
+                                    <button data-id="${reply.id}" class="reply-btn text-xs text-gray-500 hover:text-blue-600"><i class="fas fa-reply"></i> Reply</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="reply-form-${reply.id}" class="reply-form mt-2 ml-4"></div>
+                        <div class="replies-to-reply-container mt-2">
+                            ${renderReplies(reply.replies)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            function renderPolls(rollNumber) {
+                const list = studentMainViews.polls;
+                list.innerHTML = '';
+                if(mockPolls.length === 0) { list.innerHTML = `<div class="bg-white p-6 rounded-xl shadow-md"><p class="text-gray-500 text-center">No active polls right now.</p></div>`; return; }
+                mockPolls.forEach(poll => {
+                    const hasVoted = poll.voters.includes(rollNumber);
+                    const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
+                    const card = document.createElement('div');
+                    card.className = 'p-6 bg-white rounded-lg shadow-md mb-6';
+                    card.innerHTML = `<h3 class="text-lg font-bold mb-4">${poll.question}</h3>`;
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'space-y-3';
+                    poll.options.forEach((option, index) => {
+                        if(hasVoted) {
+                            const percentage = totalVotes > 0 ? ((option.votes / totalVotes) * 100).toFixed(0) : 0;
+                            optionsContainer.innerHTML += `<div class="flex justify-between items-center text-sm"><p>${option.text}</p><p class="font-semibold">${percentage}%</p></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${percentage}%"></div></div>`;
+                        } else {
+                            optionsContainer.innerHTML += `<button data-poll-id="${poll.id}" data-option-index="${index}" class="vote-poll-btn block w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-md">${option.text}</button>`;
+                        }
+                    });
+                    card.appendChild(optionsContainer);
+                    list.appendChild(card);
+                });
+            }
+
+            function renderSuggestionBoard(rollNumber) {
+                const container = studentMainViews.suggest;
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h2 class="text-2xl font-bold mb-4">Suggestion Board</h2>
+                        <p class="text-sm text-gray-600 mb-6">Upvote general suggestions for the college. Your identity remains anonymous here.</p>
+                        <div id="suggestion-board-list" class="space-y-4"></div>
+                    </div>
+                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <button id="submit-new-feedback-btn" class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow text-left">
+                            <div class="flex items-center">
+                                <div class="bg-blue-500 text-white w-12 h-12 rounded-lg flex items-center justify-center text-2xl"><i class="fas fa-plus"></i></div>
+                                <div class="ml-4">
+                                    <p class="font-bold text-lg">Submit New Feedback</p>
+                                    <p class="text-sm text-gray-600">Share a thought about any class...</p>
+                                </div>
+                            </div>
+                        </button>
+                        <button id="my-feedback-history-btn" class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow text-left">
+                            <div class="flex items-center">
+                                <div class="bg-gray-700 text-white w-12 h-12 rounded-lg flex items-center justify-center text-2xl"><i class="fas fa-history"></i></div>
+                                <div class="ml-4">
+                                    <p class="font-bold text-lg">My Feedback History</p>
+                                    <p class="text-sm text-gray-600">Check the status of your past submissions...</p>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                `;
+                
+                const list = document.getElementById('suggestion-board-list');
+                const suggestions = mockFeedback.filter(fb => fb.category === 'Suggestion' && fb.subject === 'General');
+                if (suggestions.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center">No general suggestions have been submitted yet.</p>`; return; }
+                suggestions.sort((a,b) => b.upvotes.length - a.upvotes.length).forEach(item => {
+                    const hasUpvoted = item.upvotes.includes(rollNumber);
+                    const card = document.createElement('div');
+                    card.className = 'p-4 bg-gray-50 rounded-lg flex justify-between items-center';
+                    card.innerHTML = `<p>${item.observation}</p><button data-doc-id="${item.id}" class="upvote-suggestion-btn flex items-center gap-2 px-3 py-1 rounded-full text-sm ${hasUpvoted ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}" ${hasUpvoted ? 'disabled' : ''}><i class="fas fa-lightbulb"></i> <span class="font-semibold">${item.upvotes.length}</span></button>`;
+                    list.appendChild(card);
+                });
+            }
+            
+            function renderStudentProfile() {
+                studentMainViews.profile.innerHTML = `<div class="bg-white p-8 rounded-xl shadow-md text-center"><h2 class="text-2xl font-bold mb-4">My Profile</h2><i class="fas fa-user-circle text-6xl text-gray-400 mb-4"></i><p class="font-bold text-xl">${currentRollNumber}</p><p class="text-gray-600">Student at M.G.M.'s College of CS and IT</p><p class="mt-4 text-sm text-gray-500">Profile page is under construction.</p></div>`;
+            }
+
+            function renderSubmitFeedbackForm() {
+                studentMainViews.submitFeedback.innerHTML = `<div class="bg-white p-8 rounded-xl shadow-md"><h2 class="text-2xl font-bold mb-4">Submit New Feedback</h2><form id="student-feedback-form" class="space-y-6"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="feedback-subject" class="block text-sm font-medium text-gray-700 mb-1">Select Subject</label><select id="feedback-subject" class="w-full px-3 py-2 border border-gray-300 rounded-md" required><option value="" disabled selected>Select...</option><option value="Python (Deshpande Sir)">Python (Deshpande Sir)</option><option value="Windows Programming (Samadhan Sir)">Windows Programming (Samadhan Sir)</option><option value="Data Science (Pathak Sir)">Data Science (Pathak Sir)</option><option value="Software Testing (Trupti Mam)">Software Testing (Trupti Mam)</option><option value="General">General/Other</option></select></div><div><label for="feedback-category" class="block text-sm font-medium text-gray-700 mb-1">Select Category</label><select id="feedback-category" class="w-full px-3 py-2 border border-gray-300 rounded-md" required><option value="" disabled selected>Select...</option><option value="Praise">Praise</option><option value="Suggestion">Suggestion</option><option value="Concern">Concern</option></select></div></div><div><label for="feedback-observation" class="block text-sm font-medium text-gray-700 mb-1">Describe your feedback in detail</label><textarea id="feedback-observation" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Please be specific and constructive..." required></textarea></div><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg">Submit Feedback</button></form></div>`;
+                document.getElementById('student-feedback-form').addEventListener('submit', handleFeedbackSubmit);
+            }
+            
+            function renderMyFeedbackHistory(rollNumber) {
+                const list = studentMainViews.feedbackHistory;
+                const myFeedback = mockFeedback.filter(fb => fb.authorId === rollNumber);
+                list.innerHTML = `<div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-2xl font-bold mb-4">My Feedback History</h2><div id="my-feedback-history-list" class="space-y-4"></div></div>`;
+                const historyList = document.getElementById('my-feedback-history-list');
+                if (myFeedback.length === 0) { historyList.innerHTML = `<p class="text-gray-500 text-center">You haven't submitted any feedback yet.</p>`; return; }
+                myFeedback.sort((a,b) => b.createdAt - a.createdAt).forEach(item => { const card = document.createElement('div'); card.className = 'p-4 bg-gray-50 rounded-lg shadow-sm'; const unansweredQuestion = item.followUps.find(f => !f.answer); const answeredQuestion = item.followUps.find(f => f.answer); card.innerHTML = `<p class="text-sm text-gray-500">${item.createdAt.toLocaleString()}</p><p class="font-bold my-1">${item.subject} - <span class="font-normal">${item.category}</span></p><p>"${item.observation}"</p>${unansweredQuestion ? `<div class="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-300"><p class="font-semibold my-1">Question: ${unansweredQuestion.question}</p><textarea id="answer-${item.id}" class="w-full p-2 border rounded-md text-sm" placeholder="Your anonymous reply..."></textarea><button data-doc-id="${item.id}" class="submit-answer-btn mt-2 w-full text-sm bg-blue-500 text-white py-1 rounded-md">Submit Reply</button></div>` : ''}${answeredQuestion ? `<div class="mt-3 p-3 bg-green-50 rounded-lg border border-green-300"><p class="font-semibold my-1">Question: ${answeredQuestion.question}</p><p class="text-gray-700">Your reply: ${answeredQuestion.answer}</p></div>` : ''}`; historyList.appendChild(card); });
+            }
+
+            function handleFeedbackSubmit(e) { e.preventDefault(); if (!currentRollNumber) { showToast('Please log in first.', 'error'); return; } const newFeedback = { id: `fb${Math.random()}`, category: document.getElementById('feedback-category').value, subject: document.getElementById('feedback-subject').value, observation: document.getElementById('feedback-observation').value, status: 'New', authorId: currentRollNumber, upvotes: [], createdAt: new Date(), followUps: [] }; if (!newFeedback.category || !newFeedback.subject) { showToast('Please select a subject and category.', 'error'); return; } mockFeedback.unshift(newFeedback); showToast('Feedback submitted successfully!'); e.target.reset(); showStudentMainView('feedbackHistory'); }
+
+            // --- TEACHER DASHBOARD ---
+            function populateTeacherDashboard(teacherData) {
+                populateTeacherNotices(teacherData.name);
+                populateTeacherFeedbackFeed(teacherData.subjects);
+                populateTeacherSuggestionBoard(teacherData);
+            }
+            
+            function populateTeacherNotices(teacherName) {
+                // FIX: Changed getElementById from "teacher-notices" to "notices"
+                const container = document.getElementById('notices');
+                const collegeNotices = mockNotices.filter(n => n.type === 'college').sort((a,b) => b.createdAt - a.createdAt);
+                const myNotices = mockNotices.filter(n => n.author === teacherName).sort((a,b) => b.createdAt - a.createdAt);
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold">Notices</h2>
+                            <button id="create-notice-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">Create Notice</button>
+                        </div>
+                        <div id="create-notice-form-container" class="hidden mb-6">
+                            <form id="create-notice-form" class="space-y-4 p-4 border rounded-lg bg-gray-50">
+                                <div><label for="notice-subject" class="block text-sm font-medium text-gray-700">Subject</label><input type="text" id="notice-subject" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., Extra Lecture for Python"></div>
+                                <div><label for="notice-content" class="block text-sm font-medium text-gray-700">Notice Content</label><textarea id="notice-content" rows="4" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Details about the notice..."></textarea></div>
+                                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">Broadcast Notice</button>
+                            </form>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <h3 class="text-xl font-bold mb-4">College Notices</h3>
+                                <div class="space-y-4">
+                                    ${collegeNotices.length > 0 ? collegeNotices.map(n => `
+                                        <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-indigo-500">
+                                            <p class="font-bold">${n.subject}</p>
+                                            <p class="text-gray-700 mt-1">${n.content}</p>
+                                            <p class="text-xs text-gray-500 mt-2 text-right">By: ${n.author} - ${n.createdAt.toLocaleDateString()}</p>
+                                        </div>
+                                    `).join('') : '<p class="text-gray-500">No college notices.</p>'}
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-4">My Broadcasts</h3>
+                                <div class="space-y-4">
+                                    ${myNotices.length > 0 ? myNotices.map(n => `
+                                        <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-teal-500">
+                                            <p class="font-bold">${n.subject}</p>
+                                            <p class="text-gray-700 mt-1">${n.content}</p>
+                                            <p class="text-xs text-gray-500 mt-2 text-right">Sent: ${n.createdAt.toLocaleDateString()}</p>
+                                        </div>
+                                    `).join('') : '<p class="text-gray-500">You have not sent any notices.</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function populateTeacherFeedbackFeed(subjects) {
+                const feedbackList = document.getElementById('feedback-list');
+                const teacherFeedback = mockFeedback.filter(item => subjects.includes(item.subject));
+                feedbackList.innerHTML = '';
+                const praiseAndConcerns = teacherFeedback.filter(item => item.category === 'Praise' || item.category === 'Concern');
+                if(praiseAndConcerns.length === 0) { feedbackList.innerHTML = `<p class="text-gray-500 text-center">No praise or concerns for your subjects yet.</p>`; }
+                praiseAndConcerns.sort((a,b) => b.createdAt - a.createdAt).forEach(item => { const card = document.createElement('div'); let color = item.category === 'Praise' ? 'green' : 'red'; card.className = `bg-white p-4 rounded-lg shadow-sm border-l-4 border-${color}-500`; card.innerHTML = `<div class="flex justify-between items-start"><h4 class="font-bold text-lg">${item.subject}</h4><span class="text-xs font-semibold text-${color}-600 bg-${color}-100 px-2 py-1 rounded-full">${item.category}</span></div><p class="text-gray-700 mt-2">"${item.observation}"</p>${item.followUps.map(f => `<div class="mt-2 p-2 bg-gray-50 rounded-md text-sm"><p><strong>Q:</strong> ${f.question}</p><p><strong>A:</strong> ${f.answer || '<i>Waiting for student reply...</i>'}</p></div>`).join('')}<div class="flex justify-between items-center mt-3"><button data-doc-id="${item.id}" class="ask-follow-up-btn text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">Ask Follow-up</button><p class="text-xs text-gray-400">By: Anonymous #${item.id.substring(0,4)}</p></div>`; feedbackList.appendChild(card); });
+            }
+
+            function populateTeacherSuggestionBoard(teacherData) {
+                const teacherSuggestionList = document.getElementById('teacher-suggestion-list');
+                const teacherFeedback = mockFeedback.filter(item => teacherData.subjects.includes(item.subject));
+                const generalSuggestions = mockFeedback.filter(item => item.category === 'Suggestion' && item.subject === 'General');
+                teacherSuggestionList.innerHTML = `<h2 class="text-2xl font-bold mb-4">Private Suggestions for Your Subjects</h2><div id="private-suggestions-list" class="space-y-4 mb-6"></div><h2 class="text-2xl font-bold mb-4">Popular General Suggestions</h2><div id="popular-general-suggestions-list" class="space-y-4"></div>`;
+                const privateSuggestions = teacherFeedback.filter(item => item.category === 'Suggestion');
+                const privateList = document.getElementById('private-suggestions-list');
+                const popularList = document.getElementById('popular-general-suggestions-list');
+                if(privateSuggestions.length === 0) { privateList.innerHTML = `<p class="text-gray-500 text-center text-sm">No private suggestions for your subjects yet.</p>`; }
+                privateSuggestions.sort((a,b) => b.createdAt - a.createdAt).forEach(item => { const card = document.createElement('div'); card.className = 'p-4 bg-gray-50 rounded-lg flex justify-between items-center'; card.innerHTML = `<p>${item.observation}</p><p class="text-xs text-gray-400">By: Anonymous #${item.id.substring(0,4)}</p>`; privateList.appendChild(card); });
+                if(generalSuggestions.length === 0) { popularList.innerHTML = `<p class="text-gray-500 text-center text-sm">No general suggestions yet.</p>`; }
+                generalSuggestions.sort((a,b) => b.upvotes.length - a.upvotes.length).forEach(item => { const hasUpvoted = item.upvotes.includes(teacherData.name); const card = document.createElement('div'); card.className = 'p-4 bg-gray-50 rounded-lg flex justify-between items-center'; card.innerHTML = `<p>${item.observation}</p><button data-doc-id="${item.id}" class="upvote-suggestion-btn flex items-center gap-2 px-3 py-1 rounded-full text-sm ${hasUpvoted ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}" ${hasUpvoted ? 'disabled' : ''}><i class="fas fa-lightbulb"></i> <span class="font-semibold">${item.upvotes.length}</span></button>`; popularList.appendChild(card); });
+            }
+            
+            document.getElementById('create-poll-form').addEventListener('submit', (e) => { e.preventDefault(); const question = document.getElementById('poll-question').value; const option1 = document.getElementById('poll-option1').value; const option2 = document.getElementById('poll-option2').value; if(question && option1 && option2) { mockPolls.unshift({ id: `poll${Math.random()}`, question: question, active: true, options: [{text: option1, votes: 0}, {text: option2, votes: 0}], voters: [] }); showToast('Poll created successfully!'); e.target.reset(); } });
+            
+            // --- ADMIN DASHBOARD ---
+            function populateAdminDashboard() { populateFilteredConcerns(); populateTopSuggestions(); renderAdminCharts(mockFeedback); }
+            function populateFilteredConcerns() { const list = document.getElementById('filtered-concerns-list'); const statusFilter = document.getElementById('filter-status').value; const subjectFilter = document.getElementById('filter-subject').value; let concerns = mockFeedback.filter(item => item.category === 'Concern'); if (statusFilter !== 'All') { concerns = concerns.filter(item => item.status === statusFilter); } if (subjectFilter !== 'All') { concerns = concerns.filter(item => item.subject.startsWith(subjectFilter)); } const urgentKeywords = ['bullying', 'unsafe', 'harassment']; list.innerHTML = ''; if (concerns.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center">No concerns match the current filters.</p>`; return; } concerns.sort((a, b) => { const aIsUrgent = urgentKeywords.some(kw => a.observation.toLowerCase().includes(kw)); const bIsUrgent = urgentKeywords.some(kw => b.observation.toLowerCase().includes(kw)); if (aIsUrgent && !bIsUrgent) return -1; if (!aIsUrgent && bIsUrgent) return 1; return b.createdAt - a.createdAt; }).forEach(item => { const isUrgent = urgentKeywords.some(kw => item.observation.toLowerCase().includes(kw)); const card = document.createElement('div'); card.className = `p-4 rounded-lg shadow-sm border flex items-center justify-between ${isUrgent ? 'bg-red-50 border-red-400' : 'bg-white'}`; const followUpButton = item.subject === 'General' ? `<button data-doc-id="${item.id}" class="ask-follow-up-btn text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">Ask Follow-up</button>` : ''; card.innerHTML = `<div><p class="font-bold">${item.subject} ${isUrgent ? '<span class="text-red-600 font-bold ml-2">URGENT</span>' : ''}</p><p class="text-sm text-gray-600">${item.observation}</p><p class="text-xs text-gray-500 mt-1">By: Anonymous #${item.id.substring(0,4)}</p></div><div class="flex items-center gap-4">${followUpButton}<select data-doc-id="${item.id}" class="status-change-select text-sm border-gray-300 rounded-md"><option value="New" ${item.status === 'New' ? 'selected' : ''}>New</option><option value="In Progress" ${item.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option value="Resolved" ${item.status === 'Resolved' ? 'selected' : ''}>Resolved</option><option value="Reviewed" ${item.status === 'Reviewed' ? 'selected' : ''}>Reviewed</option></select></div>`; list.appendChild(card); }); }
+            document.getElementById('filter-status').addEventListener('change', populateFilteredConcerns); document.getElementById('filter-subject').addEventListener('change', populateFilteredConcerns);
+            document.addEventListener('change', (e) => { if (e.target.classList.contains('status-change-select')) { const docId = e.target.dataset.docId; const newStatus = e.target.value; const feedbackItem = mockFeedback.find(fb => fb.id === docId); if (feedbackItem) { feedbackItem.status = newStatus; showToast(`Status updated for concern from Anonymous #${docId.substring(0,4)}.`); populateFilteredConcerns(); } } });
+            function populateTopSuggestions() { const list = document.getElementById('top-suggestions-list'); const suggestions = mockFeedback.filter(fb => fb.category === 'Suggestion' && fb.subject === 'General'); list.innerHTML = ''; if(suggestions.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center text-sm">No general suggestions yet.</p>`; return; } suggestions.sort((a,b) => b.upvotes.length - a.upvotes.length).slice(0, 5).forEach(item => { const card = document.createElement('div'); card.className = 'p-3 bg-gray-50 rounded-lg flex justify-between items-center'; card.innerHTML = `<p class="text-sm">${item.observation}</p><span class="font-bold text-indigo-600 flex items-center gap-1"><i class="fas fa-lightbulb"></i> ${item.upvotes.length}</span>`; list.appendChild(card); }); }
+            function renderAdminCharts(feedbackData) { const sentimentCounts = feedbackData.reduce((acc, item) => { acc[item.category] = (acc[item.category] || 0) + 1; return acc; }, { Praise: 0, Concern: 0, Suggestion: 0 }); const sentimentCtx = document.getElementById('sentiment-chart').getContext('2d'); if(window.sentimentChart instanceof Chart) window.sentimentChart.destroy(); window.sentimentChart = new Chart(sentimentCtx, { type: 'doughnut', data: { labels: ['Praise', 'Concern', 'Suggestion'], datasets: [{ data: [sentimentCounts.Praise, sentimentCounts.Concern, sentimentCounts.Suggestion], backgroundColor: ['#22c55e', '#ef4444', '#3b82f6'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } } }); const departmentCounts = feedbackData.reduce((acc, item) => { const subjectName = item.subject.split(' (')[0]; acc[subjectName] = (acc[subjectName] || 0) + 1; return acc; }, {}); const departmentCtx = document.getElementById('department-chart').getContext('2d'); if(window.departmentChart instanceof Chart) window.departmentChart.destroy(); window.departmentChart = new Chart(departmentCtx, { type: 'bar', data: { labels: Object.keys(departmentCounts), datasets: [{ label: 'Feedback Volume', data: Object.values(departmentCounts), backgroundColor: '#14b8a6' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, onClick: (e, elements) => { if(elements.length > 0) { const clickedIndex = elements[0].index; const subject = window.departmentChart.data.labels[clickedIndex]; openModal('chart', subject); } } } }); const trendsCtx = document.getElementById('trends-chart').getContext('2d'); if(window.trendsChart instanceof Chart) window.trendsChart.destroy(); const trendData = { labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'], datasets: [ { label: 'Praise', data: [2, 3, 5, 4], borderColor: '#22c55e', tension: 0.1 }, { label: 'Concern', data: [5, 4, 2, 3], borderColor: '#ef4444', tension: 0.1 }, { label: 'Suggestion', data: [1, 2, 2, 4], borderColor: '#3b82f6', tension: 0.1 }, ] }; window.trendsChart = new Chart(trendsCtx, { type: 'line', data: trendData, options: { responsive: true, maintainAspectRatio: false } }); }
+            
+            // --- MODAL & EVENT LISTENERS ---
+            function openModal(type, data) {
+                const modal = document.getElementById('modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalContent = document.getElementById('modal-content');
+                
+                if (type === 'chart') {
+                    modalTitle.textContent = `Feedback for: ${data}`;
+                    const subjectFeedback = mockFeedback.filter(fb => fb.subject.startsWith(data));
+                    modalContent.innerHTML = subjectFeedback.length > 0 ? subjectFeedback.map(item => `<div class="p-3 bg-gray-50 rounded-md"><p class="font-semibold">${item.category}</p><p>"${item.observation}"</p><p class="text-xs text-gray-500 mt-1">By: Anonymous #${item.id.substring(0,4)}</p></div>`).join('') : `<p>No feedback for this subject.</p>`;
+                } else if (type === 'new-thread') {
+                    modalTitle.textContent = 'Create New Forum Post';
+                    const subjects = ['General', ...Object.values(userRoles).filter(u => u.role==='teacher').map(t => t.subjects[0])];
+                    modalContent.innerHTML = `
+                        <form id="new-thread-form" class="space-y-4">
+                            <div><label for="thread-title" class="block text-sm font-medium">Title</label><input type="text" id="thread-title" required class="mt-1 w-full border-gray-300 rounded-md shadow-sm"></div>
+                            <div><label for="thread-subject" class="block text-sm font-medium">Section</label><select id="thread-subject" class="mt-1 w-full border-gray-300 rounded-md shadow-sm">${subjects.map(s => `<option value="${s}">${s.split(' (')[0]}</option>`).join('')}</select></div>
+                            <div><label for="thread-content" class="block text-sm font-medium">Content</label><textarea id="thread-content" rows="5" required class="mt-1 w-full border-gray-300 rounded-md shadow-sm"></textarea></div>
+                            <div><label class="flex items-center"><input type="checkbox" id="thread-anonymous-checkbox" class="mr-2">Post anonymously</label></div>
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md">Post Thread</button>
+                        </form>
+                    `;
+                }
+                modal.classList.remove('hidden');
+            }
+            document.getElementById('close-modal-btn').addEventListener('click', () => { document.getElementById('modal').classList.add('hidden'); });
+            
+            function findReplyById(replies, id) {
+                for (const reply of replies) {
+                    if (reply.id === id) return reply;
+                    const found = findReplyById(reply.replies, id);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.upvote-suggestion-btn')) { const button = e.target.closest('.upvote-suggestion-btn'); const docId = button.dataset.docId; const feedbackItem = mockFeedback.find(fb => fb.id === docId); if (feedbackItem && !feedbackItem.upvotes.includes(currentRollNumber)) { feedbackItem.upvotes.push(currentRollNumber); renderSuggestionBoard(currentRollNumber); } }
+                if (e.target.classList.contains('vote-poll-btn')) { const pollId = e.target.dataset.pollId; const optionIndex = parseInt(e.target.dataset.optionIndex); const poll = mockPolls.find(p => p.id === pollId); if (poll && !poll.voters.includes(currentRollNumber)) { poll.options[optionIndex].votes++; poll.voters.push(currentRollNumber); renderPolls(currentRollNumber); } }
+                if (e.target.classList.contains('ask-follow-up-btn')) { const docId = e.target.dataset.docId; const feedbackItem = mockFeedback.find(fb => fb.id === docId); const question = prompt(`Ask a follow-up question for:\n"${feedbackItem.observation}"`); if (question && question.trim() !== '') { feedbackItem.followUps.push({ question: question, answer: null }); showToast('Follow-up question sent!'); if(currentTeacher) { populateTeacherDashboard(currentTeacher); } else { populateFilteredConcerns(); } } }
+                if (e.target.classList.contains('submit-answer-btn')) { const docId = e.target.dataset.docId; const feedbackItem = mockFeedback.find(fb => fb.id === docId); const answer = document.getElementById(`answer-${docId}`).value; if (answer && answer.trim() !== '') { const unanswered = feedbackItem.followUps.find(f => !f.answer); if(unanswered) unanswered.answer = answer; showToast('Your anonymous reply has been sent!'); renderMyFeedbackHistory(currentRollNumber); } }
+                if (e.target.closest('#submit-new-feedback-btn')) showStudentMainView('submitFeedback');
+                if (e.target.closest('#my-feedback-history-btn')) showStudentMainView('feedbackHistory');
+                if (e.target.closest('.forum-tab')) { currentForumView.subject = e.target.closest('.forum-tab').dataset.subject; currentForumView.threadId = null; renderForum(); }
+                if (e.target.closest('.forum-thread-link')) { currentForumView.threadId = e.target.closest('.forum-thread-link').dataset.threadId; renderForum(); }
+                if (e.target.id === 'back-to-forum-list') { currentForumView.threadId = null; renderForum(); }
+                if (e.target.id === 'new-thread-btn') { openModal('new-thread'); }
+                if (e.target.closest('.vote-btn')) { const btn = e.target.closest('.vote-btn'); const itemId = btn.dataset.id; const isUpvote = btn.classList.contains('upvote'); let item = mockForumPosts.find(p=>p.id===itemId); if (!item) { item = findReplyById(mockForumPosts.flatMap(p => p.replies), itemId); } if(!item) return; const voteList = isUpvote ? item.upvotes : item.downvotes; const antiVoteList = isUpvote ? item.downvotes : item.upvotes; if (voteList.includes(currentRollNumber)) { voteList.splice(voteList.indexOf(currentRollNumber), 1); } else { voteList.push(currentRollNumber); const antiIndex = antiVoteList.indexOf(currentRollNumber); if (antiIndex > -1) antiVoteList.splice(antiIndex, 1); } renderForumThread(studentMainViews.forum, currentForumView.threadId); }
+                if (e.target.closest('.report-btn')) { const btn = e.target.closest('.report-btn'); const postId = btn.dataset.id; const post = mockForumPosts.find(p=>p.id===postId); if(post && !post.reports.includes(currentRollNumber)) { post.reports.push(currentRollNumber); showToast('Post reported. It will be reviewed by an admin.'); if(post.reports.length >= 3) { showToast('This post has been hidden due to multiple reports.'); } } else { showToast('You have already reported this post.'); } }
+                if (e.target.closest('.reply-btn')) { const btn = e.target.closest('.reply-btn'); const id = btn.dataset.id; const formContainer = document.getElementById(`reply-form-${id}`); if (formContainer.style.display === 'block') { formContainer.style.display = 'none'; } else { document.querySelectorAll('.reply-form').forEach(f => f.style.display = 'none'); formContainer.innerHTML = `<textarea class="w-full p-2 border rounded-md text-sm" placeholder="Write a reply..."></textarea><div class="flex justify-between items-center mt-2"><button data-parent-id="${id}" class="submit-nested-reply-btn bg-blue-600 text-white px-3 py-1 rounded-lg text-xs">Submit</button><label class="flex items-center text-xs"><input type="checkbox" class="mr-1">Anon</label></div>`; formContainer.style.display = 'block'; } }
+                if (e.target.closest('.submit-nested-reply-btn')) { const btn = e.target.closest('.submit-nested-reply-btn'); const parentId = btn.dataset.parentId; const formContainer = btn.parentElement.parentElement; const content = formContainer.querySelector('textarea').value; const isAnonymous = formContainer.querySelector('input[type="checkbox"]').checked; if (content.trim()) { let parent = mockForumPosts.find(p => p.id === parentId); if (!parent) { parent = findReplyById(mockForumPosts.flatMap(p => p.replies), parentId); } if (parent) { parent.replies.push({ id: `r${Math.random()}`, authorId: currentRollNumber, isAnonymous, content, upvotes: [], downvotes: [], reports: [], createdAt: new Date(), replies: [] }); renderForumThread(studentMainViews.forum, currentForumView.threadId); } } }
+                if (e.target.id === 'create-notice-btn') { document.getElementById('create-notice-form-container').classList.toggle('hidden'); }
+            });
+            
+            document.addEventListener('submit', e => {
+                if (e.target.id === 'new-thread-form') {
+                    e.preventDefault();
+                    const newPost = { id: `fp${Math.random()}`, subject: document.getElementById('thread-subject').value, authorId: currentRollNumber, isAnonymous: document.getElementById('thread-anonymous-checkbox').checked, title: document.getElementById('thread-title').value, content: document.getElementById('thread-content').value, upvotes: [], downvotes: [], reports: [], createdAt: new Date(), replies: [] };
+                    mockForumPosts.push(newPost);
+                    currentForumView.subject = newPost.subject;
+                    renderForum();
+                    document.getElementById('modal').classList.add('hidden');
+                    showToast('New post created successfully!');
+                }
+                if (e.target.id === 'create-notice-form') {
+                    e.preventDefault();
+                    if (!currentTeacher) return;
+                    const subject = document.getElementById('notice-subject').value;
+                    const content = document.getElementById('notice-content').value;
+                    if(subject && content) {
+                        mockNotices.unshift({ id: `n${Math.random()}`, type: 'teacher', author: currentTeacher.name, subject, content, createdAt: new Date() });
+                        showToast('Notice broadcasted successfully!');
+                        e.target.reset();
+                        document.getElementById('create-notice-form-container').classList.add('hidden');
+                        populateTeacherDashboard(currentTeacher);
+                    }
+                }
+            });
+
+            setupTabNavigation('teacher-tabs');
+        });
+    </script>
+</body>
+</html>
